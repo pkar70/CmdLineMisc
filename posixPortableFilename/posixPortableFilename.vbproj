@@ -3,8 +3,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>posixPortableFilename</RootNamespace>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <AssemblyName>2ppf</AssemblyName>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="pkar.DotNetExts" Version="2.2.1" />
+  </ItemGroup>
 
 </Project>

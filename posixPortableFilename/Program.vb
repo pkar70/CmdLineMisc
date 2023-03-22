@@ -1,5 +1,7 @@
 Imports System
 Imports System.IO
+Imports pkar.DotNetExtensions
+
 
 Module Program
 
@@ -7,10 +9,11 @@ Module Program
     Private bRenameFiles As Boolean = True
     Private bStrictMode As Boolean = False
     Private bRecursive As Boolean = False
+    Private bUseTransliterate As Boolean = False
 
 
     Sub Main(args As String())
-        Console.WriteLine("File renamer (to POSIX portable filename charset)" & vbCrLf)
+        Console.WriteLine("File renamer (to POSIX portable filename charset) v1.5.0, (C) PKAR " & vbCrLf)
 
         If ProcessArgs(args) Then
             Dim currDir As String = Directory.GetCurrentDirectory
@@ -23,6 +26,7 @@ Module Program
         Console.WriteLine("Options:")
         Console.WriteLine("/?, /h : this help")
         Console.WriteLine("/r, /s : recursive")
+        Console.WriteLine("/t     : use transliterate")
         Console.WriteLine("/d     : rename folders")
         Console.WriteLine("/f-    : don't rename files")
         Console.WriteLine("/strict: strict POSIX portable")
@@ -44,6 +48,8 @@ Module Program
                     bRenameFiles = False
                 Case "/strict"
                     bStrictMode = True
+                Case "/t"
+                    bUseTransliterate = True
                 Case Else
                     Console.WriteLine("Unknown option: " & param)
                     PrintHelp()
@@ -85,12 +91,13 @@ Module Program
     End Sub
 
     Public Function GetNewFilename(oldfilename As String) As String
-        Dim newFilename As String = If(bStrictMode, oldfilename.ToPOSIXportableFilename, oldfilename.DropAccents)
+        Dim newFilename As String = If(bStrictMode, oldfilename.ToPOSIXportableFilename(bUseTransliterate), oldfilename.DropAccents)
         If oldfilename = newFilename Then Return ""
         Console.WriteLine($"{oldfilename} -> {newFilename}")
         Return newFilename
     End Function
 
+#If False Then
     ''' <summary>
     ''' try to convert string to valid filename (very strict: POSIX portable filename, see IEEE 1003.1, 3.282), dropping accents etc., and all other characters change to '_'
     ''' POSIX allows only latin letters, digits, dot, underscore and minus.
@@ -141,5 +148,6 @@ Module Program
 
         Return sRet
     End Function
+#End If
 
 End Module
