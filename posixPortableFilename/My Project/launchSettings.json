@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "posixPortableFilename": {
+      "commandName": "Project",
+      "workingDirectory": "E:\\Temp\\test2ppf"
+    }
+  }
+}

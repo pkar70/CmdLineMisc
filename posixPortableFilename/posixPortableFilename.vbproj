@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>posixPortableFilename</RootNamespace>
+    <TargetFramework>net6.0</TargetFramework>
+    <AssemblyName>2ppf</AssemblyName>
+  </PropertyGroup>
+
+</Project>
