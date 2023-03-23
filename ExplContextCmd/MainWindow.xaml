@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ExplContextCmd"
+        xmlns:local="clr-namespace:ExplContextCmd.User_Controls"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800" Loaded="Window_Loaded">
     <Grid>
@@ -17,6 +17,7 @@
         </Grid.RowDefinitions>
 
         <TextBlock FontSize="18" HorizontalAlignment="Center" FontWeight="Bold" Text="Explorer context command builder" />
+        <TextBlock Name="uiAdmin" FontSize="10" HorizontalAlignment="Right" Text="(admin)" Foreground="Red" Visibility="Hidden"/>
 
         <StackPanel Orientation="Horizontal" Grid.Row="2">
             <TextBlock Text="Prefix: " VerticalAlignment="Center" />
@@ -39,75 +40,31 @@
 
                     <TextBlock Text="Lista komend dla plików" Margin="1,2,0,0"/>
 
-                    <Grid Grid.Row="1">
-                        <ListView Margin="5,5,5,5" Name="uiListaFile" Grid.Row="1" Grid.RowSpan="3" SelectionChanged="uiListaFile_SelectionChanged" SelectionMode="Single" >
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <Setter Property="HorizontalContentAlignment"  Value="Stretch"/>
-                                </Style>
-                            </ListView.ItemContainerStyle>
-
-                            <ListView.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal">
-                                        <CheckBox IsChecked="{Binding active}" IsEnabled="False" Margin="1,0,5,0"/>
-                                        <TextBlock Text="{Binding name}" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-
-                        </ListView>
-
-                    </Grid>
-
-                    <Grid Grid.Column="1" Grid.Row="1" Name="uiEditKomendaFile">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="2*" />
-                        </Grid.RowDefinitions>
-
-
-                        <Grid Grid.Row="2">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="100" />
-                                <ColumnDefinition />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="@" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="AppliesTo" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">
-                            <Hyperlink NavigateUri="https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-advancedquerysyntax" RequestNavigate="Hyperlink_RequestNavigate" >Link </Hyperlink>
-                            </TextBlock>
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Cmd" />
-                            <TextBlock Grid.Row="3" Grid.Column="0" Text="IsActive" />
-
-                            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding defDescription}"  />
-                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding appliesTo}"  />
-                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding command}"  />
-                            <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding active}" IsEnabled="False" />
-
-                        </Grid>
-
-                        <Button Grid.Column="1" Grid.Row="3" VerticalAlignment="Center" HorizontalAlignment="Center" Content=" Add " Name="uiAddSetFile" />
-
-                    </Grid>
+                    <local:UserControl_Listka Grid.Row="1" x:Name="uiListaFile" SelectionChanged="uiListaFile_SelectionChanged"/>
+                    <local:UserControl_EditKomenda Grid.Column="1" Grid.Row="1" x:Name="uiEditKomendaFile" Click="uiAddSetFile_Click"/>
                 </Grid>
 
             </TabItem>
 
             <TabItem Header="Folder">
                 <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
 
+                    <TextBlock Text="Lista komend dla plików" Margin="1,2,0,0"/>
+
+                    <local:UserControl_Listka Grid.Row="1" x:Name="uiListaDir" SelectionChanged="uiListaDir_SelectionChanged"/>
+                    <local:UserControl_EditKomenda Grid.Column="1" Grid.Row="1" x:Name="uiEditKomendaDir" Click="uiAddSetDir_Click"/>
                 </Grid>
             </TabItem>
 
-            <TabItem Header="Extensions">
+            <!--<TabItem Header="Extensions">
             <Grid Name="GridListaExtension">
 
                 <Grid.ColumnDefinitions>
@@ -151,7 +108,7 @@
 
                 </StackPanel>
             </Grid>
-            </TabItem>
+            </TabItem>-->
         </TabControl>
 
         <Button Grid.Row="4" Margin="10,0,10,5" HorizontalAlignment="Left" Content=" Export " Click="uiExport_Click"/>

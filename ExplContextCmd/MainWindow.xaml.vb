@@ -1,4 +1,6 @@
-﻿Imports System.Security
+﻿Imports System.Buffers
+Imports System.Reflection
+Imports System.Security
 Imports System.Security.Principal
 Imports Microsoft.Win32
 Imports pkar.DotNetExtensions
@@ -8,12 +10,9 @@ Class MainWindow
     Private Sub Window_Loaded(sender As Object, e As RoutedEventArgs)
         FillComboPrefixes()
 
-        If Not IsRunningAsAdministrator() Then
-            MessageBox.Show("Nie jesteś adminem, więc tylko View jest możliwe")
-            ' ewentualne przełączanie: https://stackoverflow.com/questions/5276674/how-to-force-a-wpf-application-to-run-in-administrator-mode
-        End If
-
+        If CheckAdmin() Then uiAdmin.Visibility = Visibility.Visible
     End Sub
+
 
 #Region "prefiksy"
 
@@ -22,11 +21,11 @@ Class MainWindow
         _listaKomend = ReadListaKomend(currPrefix)
         If _listaKomend IsNot Nothing Then
             uiListaFile.ItemsSource = _listaKomend.Where(Function(x) x.name.NotContains("Dir"))
-            'uiListaFolder.ItemsSource = _listaKomend.Where(Function(x) x.name.Contains("Dir"))
+            uiListaDir.ItemsSource = _listaKomend.Where(Function(x) x.name.Contains("Dir"))
         End If
 
-        _listaExts = ReadListaExts(currPrefix)
-        If _listaExts IsNot Nothing Then uiListaExt.ItemsSource = _listaExts
+        '_listaExts = ReadListaExts(currPrefix)
+        'If _listaExts IsNot Nothing Then uiListaExt.ItemsSource = _listaExts
 
     End Sub
 
@@ -87,7 +86,7 @@ Class MainWindow
         Dim oKey As RegistryKey = Registry.LocalMachine.OpenSubKey(CMD_REG_KEY)
         If oKey Is Nothing Then Return Nothing
 
-        Dim used As String = ";" & GetActiveCommands("*", sPrefix) & ";" & GetActiveCommands("Directory", sPrefix) & ";"
+        Dim used As String = ";" & ReadActiveCommands(False, sPrefix) & ";" & ReadActiveCommands(True, sPrefix) & ";"
         used = used.ToLowerInvariant
 
         For Each sKey As String In oKey.GetSubKeyNames
@@ -96,17 +95,11 @@ Class MainWindow
 
             Dim oKeyCmd As RegistryKey = oKey.OpenSubKey(sKey)
 
-            Dim oNew As New JednaKomenda
+            Dim oNew As JednaKomenda = ReadCommandKey(oKeyCmd)
             oNew.name = sKey '.TrimBefore(".").Substring(1)
-            oNew.appliesTo = oKeyCmd.GetValue("AppliesTo", "")
-            oNew.defDescription = oKeyCmd.GetValue("", "")
-
-            Dim oKeyCmd1 As RegistryKey = oKeyCmd.OpenSubKey("command")
-            oNew.command = oKeyCmd1.GetValue("", "")
 
             If used.Contains(sKey.ToLowerInvariant) Then oNew.active = True
 
-            oKeyCmd1.Close()
             oKeyCmd.Close()
 
             listaKomend.Add(oNew)
@@ -117,33 +110,36 @@ Class MainWindow
     End Function
 
 
-    Private Function GetActiveCommands(ext As String, prefix As String) As String
-        Dim sRegPath As String = $"{EXT_REG_KEY}\{ext}\shell\{prefix}"
-        Dim oKey As RegistryKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(sRegPath)
-        If oKey Is Nothing Then Return ""
-
-        Dim used As String = oKey.GetValue("subcommands", "")
-        oKey.Close()
-
-        Return used
-    End Function
-
     Private Sub uiListaFile_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
         If e.AddedItems Is Nothing Then Return
         If e.AddedItems.Count < 1 Then Return
 
         uiEditKomendaFile.DataContext = e.AddedItems(0)
-        uiAddSetFile.Content = " Save "
+        'uiEditKomendaFile.DataContext = e.AddedItems(0)
+        uiEditKomendaFile.ButtonText = " Save "
+        'uiAddSetFile.Content = " Save "
     End Sub
 
-    Private Sub uiAddSetFile_Click(sender As Object, e As RoutedEventArgs) Handles uiAddSetFile.Click
+    Private Sub uiListaDir_SelectionChanged(sender As Object, e As SelectionChangedEventArgs)
+        If e.AddedItems Is Nothing Then Return
+        If e.AddedItems.Count < 1 Then Return
+
+        uiEditKomendaDir.DataContext = e.AddedItems(0)
+        'uiEditKomendaFile.DataContext = e.AddedItems(0)
+        uiEditKomendaDir.ButtonText = " Save "
+        'uiAddSetFile.Content = " Save "
+
+    End Sub
+
+    Private Sub AddOrSet(sender As Object, isDir As Boolean)
+
+        If Not CheckAdmin() Then Return
+
         Dim oFE As FrameworkElement = sender
         If oFE Is Nothing Then Return
 
         Dim oItem As JednaKomenda = oFE.DataContext
         If oItem Is Nothing Then Return
-
-        ' *TODO* enable/disable, na razie nie umiem
 
         Dim keyName As String = CMD_REG_KEY & "\" & oItem.name
         Try
@@ -154,71 +150,83 @@ Class MainWindow
                 Return
             End If
 
-            oKey.SetValue("AppliesTo", oItem.appliesTo)
-            oKey.SetValue("", oItem.defDescription)
+            WriteCommandKey(oKey, oItem)
 
-            Dim oKeyCmd As RegistryKey = oKey.OpenSubKey("command", True)
-            oKeyCmd.SetValue("", oItem.command)
-
-            oKeyCmd.Close()
             oKey.Close()
 
         Catch ex As SecurityException
-            Clipboard.SetText("HKEY_LOCAL_MACHINE\" & keyName)
-            MessageBox.Show("Ale nie masz uprawnień! Zmień manualnie (key w clipboard) bądź export")
+            'Clipboard.SetText("HKEY_LOCAL_MACHINE\" & keyName)
+            'MessageBox.Show("Ale nie masz uprawnień! Zmień manualnie (key w clipboard) bądź export")
         End Try
+
+        Try
+
+        Catch ex As Exception
+
+        End Try
+
+        Dim currPrefix As String = uiPrefixCombo.SelectedValue
+        WriteActiveCommands(isDir, currPrefix, ListActiveCommands(isDir))
 
         ' %L long wersja 1 parametru
         ' %W parent directory
 
     End Sub
 
+    Private Sub uiAddSetFile_Click(sender As Object, e As RoutedEventArgs)
+        AddOrSet(sender, False)
+    End Sub
+
+    Private Sub uiAddSetDir_Click(sender As Object, e As RoutedEventArgs)
+        AddOrSet(sender, True)
+    End Sub
+
+
 #Region "exts"
 
     Private _listaExts As List(Of JednoExt)
 
-    Private Const EXT_REG_KEY As String = "SOFTWARE\Classes"
 
-    Private Function ReadListaExts(sPrefix As String) As List(Of JednoExt)
-        Dim listaExts As New List(Of JednoExt)
+    'Private Function ReadListaExts(sPrefix As String) As List(Of JednoExt)
+    '    Dim listaExts As New List(Of JednoExt)
 
-        Dim oKey As RegistryKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(EXT_REG_KEY)
-        If oKey Is Nothing Then Return Nothing
+    '    Dim oKey As RegistryKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(EXT_REG_KEY)
+    '    If oKey Is Nothing Then Return Nothing
 
-        For Each sKey As String In oKey.GetSubKeyNames
+    '    For Each sKey As String In oKey.GetSubKeyNames
 
-            'Computer\ HKEY_LOCAL_MACHINE \ SOFTWARE \ Classes \ [ext] \ shell \ [prefix] \ SubCommands = [prefix].[name];...
+    '        'Computer\ HKEY_LOCAL_MACHINE \ SOFTWARE \ Classes \ [ext] \ shell \ [prefix] \ SubCommands = [prefix].[name];...
 
-            Dim oKeyExt As RegistryKey = oKey.OpenSubKey(sKey)
+    '        Dim oKeyExt As RegistryKey = oKey.OpenSubKey(sKey)
 
-            Dim oKeyShell As RegistryKey = oKeyExt.OpenSubKey("shell")
+    '        Dim oKeyShell As RegistryKey = oKeyExt.OpenSubKey("shell")
 
-            If oKeyShell IsNot Nothing Then
-                Dim oKeyPrefix As RegistryKey = oKeyShell.OpenSubKey(sPrefix)
+    '        If oKeyShell IsNot Nothing Then
+    '            Dim oKeyPrefix As RegistryKey = oKeyShell.OpenSubKey(sPrefix)
 
-                If oKeyPrefix IsNot Nothing Then
-                    Dim oNew As New JednoExt
-                    oNew.fileExt = sKey
-                    oNew.subcommands = oKeyPrefix.GetValue("subcommands")
-                    listaExts.Add(oNew)
-                    oKeyPrefix.Close()
-                End If
+    '            If oKeyPrefix IsNot Nothing Then
+    '                Dim oNew As New JednoExt
+    '                oNew.fileExt = sKey
+    '                oNew.subcommands = oKeyPrefix.GetValue("subcommands")
+    '                listaExts.Add(oNew)
+    '                oKeyPrefix.Close()
+    '            End If
 
-                oKeyShell.Close()
-            End If
+    '            oKeyShell.Close()
+    '        End If
 
-            oKeyExt.Close()
+    '        oKeyExt.Close()
 
-        Next
+    '    Next
 
-        Return listaExts
+    '    Return listaExts
 
-    End Function
+    'End Function
 
-    Private Sub uiItemExt_MDown(sender As Object, e As MouseButtonEventArgs)
-        Dim oFE As FrameworkElement = sender
-        uiEditExt.DataContext = oFE.DataContext
-    End Sub
+    'Private Sub uiItemExt_MDown(sender As Object, e As MouseButtonEventArgs)
+    '    Dim oFE As FrameworkElement = sender
+    '    uiEditExt.DataContext = oFE.DataContext
+    'End Sub
 #End Region
 
 
@@ -253,57 +261,46 @@ Class MainWindow
 
     Private Function ExportFileCommands() As String
 
-        Dim sRet As String = "
+        Return $"
 
 ; commands for files
 
+{String.Join("", _listaKomend.Where(Function(x) x.name.NotContains("Dir")).Select(Function(x) x.Export))}
 "
 
-        For Each oItem As JednaKomenda In _listaKomend.Where(Function(x) x.name.NotContains("Dir"))
-            sRet &= oItem.Export
-        Next
-
-        Return sRet
     End Function
 
     Private Function ExportDirCommands() As String
-        Dim sRet As String = "
+        Return $"
 
 ; commands for directories
 
+{String.Join("", _listaKomend.Where(Function(x) x.name.Contains("Dir")).Select(Function(x) x.Export))}
 "
 
-        For Each oItem As JednaKomenda In _listaKomend.Where(Function(x) x.name.Contains("Dir"))
-            sRet &= oItem.Export
-        Next
-
-        Return sRet
     End Function
 
     Private Function ExportActiveCommands(prefix As String) As String
 
-        Dim sRet As String = $"
+        Return $"
 
 ; definition of submenus
 
-[HKEY_LOCAL_MACHINE\{EXT_REG_KEY}\*\shell\{prefix}]
-""subcommands""="""
+[HKEY_LOCAL_MACHINE\{GetActiveCommandsRegPath(False)}{prefix}]
+""subcommands""=""{ListActiveCommands(False)}
 
-        For Each oItem As JednaKomenda In _listaKomend.Where(Function(x) x.name.NotContains("Dir"))
-            sRet &= oItem.name & ";"
-        Next
+[HKEY_LOCAL_MACHINE\{GetActiveCommandsRegPath(True)}{prefix}]
+""subcommands""=""{ListActiveCommands(True)}
 
-        sRet = sRet & """" & vbCrLf & vbCrLf & $"[HKEY_LOCAL_MACHINE\{EXT_REG_KEY}\Directory\shell\{prefix}]
-""subcommands""="""
+"
+    End Function
 
-        For Each oItem As JednaKomenda In _listaKomend.Where(Function(x) x.name.Contains("Dir"))
-            sRet &= oItem.name & ";"
-        Next
+    Private Function ListActiveCommands(forDir As Boolean)
 
-        sRet = sRet & """" & vbCrLf & vbCrLf
-
-        Return sRet
-
+        Return String.Join(";",
+                           _listaKomend.
+                           Where(Function(x) x.name.Contains("Dir") = forDir).
+                           Select(Function(x) x.name))
     End Function
 
 
@@ -320,27 +317,9 @@ Class MainWindow
 
 
 
-    Private Sub Hyperlink_RequestNavigate(sender As Object, e As RequestNavigateEventArgs)
-        Dim si As New ProcessStartInfo With {.FileName = e.Uri.AbsoluteUri, .UseShellExecute = True}
-        Dim proc As New Process With {.StartInfo = si}
-        proc.Start()
-
-        'Process.Start(New ProcessStartInfo(e.Uri.AbsoluteUri))
-        e.Handled = True
-    End Sub
 
 
-    Public Shared Function IsRunningAsAdministrator() As Boolean
 
-        '// Get current Windows user
-        Dim identity As WindowsIdentity = WindowsIdentity.GetCurrent()
-
-        '// Get current Windows user principal
-        Dim principal As WindowsPrincipal = New WindowsPrincipal(identity)
-
-        '// Return TRUE if user Is in role "Administrator"
-        Return principal.IsInRole(WindowsBuiltInRole.Administrator)
-    End Function
 
 
 End Class
@@ -381,6 +360,128 @@ Public Class JednoExt
     Public Property fileExt As String
     Public Property subcommands As String
 End Class
+
+Public Module RegWrap
+
+    Private Const EXT_REG_KEY As String = "SOFTWARE\Classes"
+
+#Region "active commands"
+
+    ''' <summary>
+    ''' sciezka w registry, razem z \ na końcu
+    ''' </summary>
+    Public Function GetActiveCommandsRegPath(isDir As Boolean) As String
+        If isDir Then
+            Return $"{EXT_REG_KEY}\Directory\shell\"
+        Else
+            Return $"{EXT_REG_KEY}\*\shell\"
+        End If
+    End Function
+
+    Public Function ReadActiveCommands(isDir As Boolean, prefix As String) As String
+        Dim sRegPath As String = GetActiveCommandsRegPath(isDir) & prefix
+        Dim oKey As RegistryKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(sRegPath)
+        If oKey Is Nothing Then Return ""
+
+        Dim used As String = oKey.GetValue("subcommands", "")
+        oKey.Close()
+
+        Return used
+    End Function
+
+    Public Function WriteActiveCommands(isDir As Boolean, prefix As String, commands As String) As Boolean
+        If Not IsRunningAsAdministrator() Then Return False
+
+        Try
+
+            Dim sRegPath As String = GetActiveCommandsRegPath(isDir) & prefix
+            Dim oKey As RegistryKey = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(sRegPath, True)
+            If oKey Is Nothing Then Return ""
+
+            oKey.SetValue("subcommands", commands)
+            oKey.Close()
+
+            Return True
+        Catch ex As Exception
+
+        End Try
+
+        Return False
+    End Function
+#End Region
+
+
+    Public Function ReadCommandKey(oKey As RegistryKey) As JednaKomenda
+
+        Dim oNew As New JednaKomenda
+        oNew.appliesTo = oKey.GetValue("AppliesTo", "")
+        oNew.defDescription = oKey.GetValue("", "")
+
+        Dim oKeyCmd As RegistryKey = oKey.OpenSubKey("command")
+        oNew.command = oKeyCmd.GetValue("", "")
+        oKeyCmd.Close()
+
+        Return oNew
+    End Function
+
+    Public Function WriteCommandKey(oKey As RegistryKey, oItem As JednaKomenda) As Boolean
+
+        If Not IsRunningAsAdministrator() Then Return False
+
+        oKey.SetValue("AppliesTo", oItem.appliesTo)
+        oKey.SetValue("", oItem.defDescription)
+
+        Dim oKeyCmd As RegistryKey = oKey.OpenSubKey("command", True)
+        oKeyCmd.SetValue("", oItem.command)
+
+        oKeyCmd.Close()
+
+        Return True
+    End Function
+
+
+End Module
+
+Public Module PkarWpf
+    Public Function CheckAdmin() As Boolean
+        If IsRunningAsAdministrator() Then Return True
+
+        If MessageBox.Show("Nie jesteś adminem, więc tylko View jest możliwe. Przejść na Admina?", Application.Current.MainWindow.GetType().Assembly.GetName.Name, MessageBoxButton.YesNo) <> MessageBoxResult.Yes Then
+            Return False
+        End If
+
+        ' ewentualne przełączanie: https://stackoverflow.com/questions/5276674/how-to-force-a-wpf-application-to-run-in-administrator-mode
+        Dim exePath As String = Assembly.GetEntryAssembly().Location.Replace(".dll", ".exe")
+        Dim procStart As New ProcessStartInfo(exePath)
+
+        ' Using operating shell And setting the ProcessStartInfo.Verb to “runas” will let it run as admin
+        procStart.UseShellExecute = True
+        procStart.Verb = "runas"
+
+        '// Start the application as New process
+        Process.Start(procStart)
+
+        '// Shut down the current (old) process
+        Process.GetCurrentProcess.Kill()
+        ' Me.Close()
+        ' ale tu nie dojdzie raczej
+        Return False
+    End Function
+
+    Public Function IsRunningAsAdministrator() As Boolean
+
+        '// Get current Windows user
+        Dim identity As WindowsIdentity = WindowsIdentity.GetCurrent()
+
+        '// Get current Windows user principal
+        Dim principal As WindowsPrincipal = New WindowsPrincipal(identity)
+
+        '// Return TRUE if user Is in role "Administrator"
+        Return principal.IsInRole(WindowsBuiltInRole.Administrator)
+    End Function
+
+End Module
+
 
 'programik do robienia menu kaskadowego w Explorer
 

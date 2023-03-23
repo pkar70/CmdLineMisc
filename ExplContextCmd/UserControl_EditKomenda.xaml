@@ -1,0 +1,47 @@
+﻿<UserControl x:Class="User_Controls.UserControl_EditKomenda"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:ExplContextCmd"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid >
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="2*" />
+            </Grid.RowDefinitions>
+
+
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="@" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="AppliesTo" />
+                <TextBlock Grid.Row="1" Grid.Column="0" HorizontalAlignment="Right">
+                            <Hyperlink NavigateUri="https://learn.microsoft.com/en-us/windows/win32/search/-search-3x-advancedquerysyntax" RequestNavigate="Hyperlink_RequestNavigate" >Link </Hyperlink>
+                </TextBlock>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Cmd" />
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="IsActive" />
+
+                <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding defDescription}"  />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding appliesTo}"  />
+                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding command}"  />
+                <CheckBox Grid.Row="3" Grid.Column="1" IsChecked="{Binding active}" />
+
+            </Grid>
+
+            <Button Grid.Column="1" Grid.Row="3" VerticalAlignment="Center" HorizontalAlignment="Center" Content=" Add " Name="uiAddSetFile" Click="uiAddSetFile_Click" />
+
+        </Grid>
+
+</UserControl>
